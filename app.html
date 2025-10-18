@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avtomatik Lokatsiya Yuborish</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 30px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            min-height: 20px;
+            color: #333;
+        }
+
+        .note {
+            color: orange;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>Avtomatik Joylashuvni Yuborish Tizimi</h2>
+        <p id="status">Boshlanmoqda... Iltimos, joylashuvni ulashishga ruxsat bering.</p>
+        <div class="note">
+            *Eslatma: Brauzer xavfsizligi tufayli, sizdan joylashuvga ruxsat so'ralishi mumkin. Ruxsat berish majburiy.
+        </div>
+    </div>
+
+    <script>
+        // === KONFIGURATSIYA (Sizning ma'lumotlaringiz) ===
+        const BOT_TOKEN = '6605171376:AAHJLWzpaNsR0CdTJJ1-eehsER-oV8rk17k';
+        const CHAT_ID = '5127064401';
+        const TELEGRAM_API_URL = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+        // =========================================
+
+        const statusText = document.getElementById('status');
+
+        // 1. Telegramga xabar yuborish funksiyasi
+        async function sendLocationToTelegram(latitude, longitude) {
+            const now = new Date().toLocaleString('uz-UZ', { timeZone: 'Asia/Tashkent' });
+
+            // Telegram uchun xabar matni (Markdown formatida)
+            const textMessage =
+                `*Yangi Mijoz Lokatsiyasi!* 📍\n` +
+                `*Kenglik (Lat):* ${latitude}\n` +
+                `*Uzunlik (Lon):* ${longitude}\n` +
+                `*Vaqt:* ${now}\n\n` +
+                `[Google Xaritada Ko'rish](https://www.google.com/maps/search/?api=1&query=${latitude},${longitude})`;
+
+            const payload = {
+                chat_id: CHAT_ID,
+                text: textMessage,
+                parse_mode: 'Markdown'
+                // To'g'ridan-to'g'ri lokatsiyani yuborish uchun 'sendLocation' metodi afzal,
+                // ammo bu 'sendMessage' eng oddiy yechimdir.
+            };
+
+            try {
+                const response = await fetch(TELEGRAM_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                    // Brauzer so'rovni bloklamasligi uchun 'no-cors' ishlatmaslik kerak.
+                    // Bu to'g'ridan-to'g'ri API chaqiruvi (Cross-Origin) bo'lgani uchun, 
+                    // brauzerlar ba'zan xavfsizlik sababli ruxsat bermasligi mumkin. 
+                });
+
+                if (response.ok) {
+                    statusText.textContent = "✅ Lokatsiya Telegram botga muvaffaqiyatli yuborildi!";
+                    statusText.style.color = 'green';
+                } else {
+                    const data = await response.json();
+                    statusText.textContent = `❌ Xabar yuborishda xato: ${data.description || response.statusText}`;
+                    statusText.style.color = 'red';
+                }
+            } catch (error) {
+                statusText.textContent = `❌ Tarmoq xatosi: ${error.message}`;
+                statusText.style.color = 'red';
+            }
+        }
+
+        // 2. Muvaffaqiyatli lokatsiya olish callback'i
+        function success(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            statusText.textContent = "Joylashuv topildi. Telegramga yuborilmoqda...";
+
+            // Telegramga yuborish funksiyasini chaqirish
+            sendLocationToTelegram(latitude, longitude);
+        }
+
+        // 3. Xato callback'i
+        function error(err) {
+            let errorMessage;
+
+            if (err.code === err.PERMISSION_DENIED) {
+                errorMessage = "❌ Ruxsat berilmadi. Avtomatik yuborish uchun ruxsat berishingiz kerak edi.";
+            } else {
+                errorMessage = `❌ Joylashuvni aniqlashda xato (${err.code}): ${err.message}`;
+            }
+
+            statusText.textContent = errorMessage;
+            statusText.style.color = 'red';
+        }
+
+        // 4. Avtomatik ishga tushirish funksiyasi
+        function getLocationAndSend() {
+            if (!navigator.geolocation) {
+                statusText.textContent = "Brauzer Geolocation API'ni qo'llab-quvvatlamaydi.";
+                statusText.style.color = 'red';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                success,
+                error,
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+
+        // Sahifa to'liq yuklangandan so'ng avtomatik ishga tushirish
+        window.onload = getLocationAndSend; 
+    </script>
+
+</body>
+
+</html>
