@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mening Joylashuvim</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+
+        #map-link {
+            display: none;
+            /* Dastlab yashiriladi */
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Mijoz Joylashuvini Aniqlash</h1>
+
+        <button id="getLocationBtn">Joylashuvni Aniqlash</button>
+
+        <p id="status">Joylashuv kutilmoqda...</p>
+
+        <a id="map-link" href="#" target="_blank">Xaritada Ko'rish (Google Maps)</a>
+    </div>
+
+    <script>
+        const statusText = document.getElementById('status');
+        const mapLink = document.getElementById('map-link');
+        const getLocationBtn = document.getElementById('getLocationBtn');
+
+        // Muvaffaqiyatli joylashuvni olganda ishga tushadigan funksiya
+        function success(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            // 1. Status xabarini yangilash
+            statusText.textContent = `Joylashuv topildi: Lat: ${latitude.toFixed(4)}, Lon: ${longitude.toFixed(4)}`;
+            statusText.style.color = 'green';
+
+            // 2. Google Maps uchun havola yaratish
+            // Havola to'g'ridan-to'g'ri foydalanuvchining joylashuvini ko'rsatadi
+            const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+
+            // 3. Havolani HTMLda ko'rsatish
+            mapLink.href = googleMapsUrl;
+            mapLink.style.display = 'inline-block';
+        }
+
+        // Xato yuz berganda ishga tushadigan funksiya
+        function error(err) {
+            let errorMessage = "Joylashuvni aniqlashda xato yuz berdi.";
+
+            switch (err.code) {
+                case err.PERMISSION_DENIED:
+                    errorMessage = "Joylashuvga ruxsat berilmadi. Iltimos, brauzeringizda ruxsat bering.";
+                    break;
+                case err.POSITION_UNAVAILABLE:
+                    errorMessage = "Joylashuv ma'lumotlari mavjud emas.";
+                    break;
+                case err.TIMEOUT:
+                    errorMessage = "Joylashuvni aniqlash vaqti tugadi.";
+                    break;
+            }
+
+            statusText.textContent = errorMessage;
+            statusText.style.color = 'red';
+            mapLink.style.display = 'none'; // Xato bo'lsa havolani yashirish
+        }
+
+        // Joylashuvni olishni boshlash
+        function getLocation() {
+            statusText.textContent = "Aniqlanmoqda...";
+            statusText.style.color = '#007bff';
+            mapLink.style.display = 'none';
+
+            if (!navigator.geolocation) {
+                statusText.textContent = "Brauzeringiz Geolocation API'ni qo'llab-quvvatlamaydi.";
+                statusText.style.color = 'red';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                success,
+                error,
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        }
+
+        // Tugmani bosganda funksiyani chaqirish
+        getLocationBtn.addEventListener('click', getLocation);
+
+        // Sahifa yuklanganda avtomatik aniqlashni boshlash (ixtiyoriy)
+        // getLocation(); 
+
+    </script>
+
+</body>
+
+</html>
